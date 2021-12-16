@@ -1,0 +1,103 @@
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+)
+
+func pathCost(path [][2]int, grid map[[2]int]int) int {
+	cost := 0
+	for i, pos := range path {
+		if i == 0 {
+			continue
+		}
+		cost += grid[pos]
+	}
+	return cost
+}
+
+func main() {
+	file, err := os.Open("./input_short.txt")
+	if err != nil {
+		fmt.Println("Can't read input")
+		return
+	}
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+	grid := make(map[[2]int]int)
+	row := 0
+	col := 0
+	for scanner.Scan() {
+		line := scanner.Text()
+		col = 0
+		for _, c := range line {
+			num := int(c - '0')
+			grid[[2]int{row, col}] = num
+			col++
+		}
+		row++
+	}
+
+	pos := [2]int{0, 0}
+	minToPos := make(map[[2]int][][2]int)
+	stack := make([][][2]int, 0)
+	first := make([][2]int, 0)
+	first = append(first, pos)
+	stack = append(stack, first)
+
+	deltas := [][2]int{
+		{-1, 0},
+		{0, -1},
+		{0, 1},
+		{1, 0},
+	}
+
+	/*
+		at each position consider moving to each adjacent position
+		if we've already been at the new position and the earlier move
+		was cheaper to get there, don't go
+
+	*/
+
+	for {
+		if len(stack) == 0 {
+			break
+		}
+
+		n := len(stack) - 1
+		path := stack[n]
+		pos := path[len(path)-1]
+		stack = append(stack[:n], stack[n+1:]...)
+
+		for _, delta := range deltas {
+			neighbor := [2]int{pos[0] + delta[0], pos[1] + delta[1]}
+			if _, isOK := grid[neighbor]; !isOK {
+				// this position doesn't exist
+				continue
+			}
+
+			nextPath := make([][2]int, len(path))
+			copy(nextPath, path)
+			nextPath = append(nextPath, neighbor)
+			cost := pathCost(nextPath, grid)
+			if existingBestPath, isOK := minToPos[neighbor]; !isOK {
+				minToPos[neighbor] = nextPath
+			} else {
+				existingCost := pathCost(existingBestPath, grid)
+				if cost < existingCost {
+					minToPos[neighbor] = nextPath
+				} else {
+					// we've already been here for cheaper
+					continue
+				}
+			}
+
+			stack = append(stack, nextPath)
+		}
+
+	}
+
+	dest := [2]int{9, 9}
+	fmt.Println(minToPos[dest], pathCost(minToPos[dest], grid))
+}
